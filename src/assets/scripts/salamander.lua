@@ -63,12 +63,12 @@ function Salamander:addFeet(index, angle, length, firstStep)
 
     local point = self.body.segments[foot.body]:getMediumPoint()
 
-    foot.legs.left:addSegment(foot.length / 2)
+    foot.legs.left:addSegment(foot.length / 2, 0, 180, 0)
     foot.legs.left:addSegment(foot.length / 2)
     foot.legs.left:setTarget(foot.current.left.x, foot.current.left.y)
     foot.legs.left:setFixedPoint(point.x, point.y)
 
-    foot.legs.right:addSegment(foot.length / 2)
+    foot.legs.right:addSegment(foot.length / 2, 0, 180, 0)
     foot.legs.right:addSegment(foot.length / 2)
     foot.legs.right:setTarget(foot.current.right.x, foot.current.right.y)
     foot.legs.right:setFixedPoint(point.x, point.y)
@@ -156,18 +156,18 @@ function Salamander:updateFeet(dt)
         foot.current.left.y = foot.current.left.y + (foot.desired.left.y - foot.current.left.y) * lerpSpeed
 
         -- pull the body slightly toward the moving leg using a lerp
-        if foot.step ==1 then
+        if foot.step == 1 then
             local right = Vector(0, 0)
             right.x = pos.x + math.cos(angle + math.rad(90)) * foot.length / 10
             right.y = pos.y + math.sin(angle + math.rad(90)) * foot.length / 10
 
-            body:pull(right.x, right.y, lerpSpeed)
+            body:pullTo(right.x, right.y, lerpSpeed)
         else
             local left = Vector(0, 0)
             left.x = pos.x + math.cos(angle - math.rad(90)) * foot.length / 10
             left.y = pos.y + math.sin(angle - math.rad(90)) * foot.length / 10
 
-            body:pull(left.x, left.y, lerpSpeed)
+            body:pullTo(left.x, left.y, lerpSpeed)
         end
 
         -- Update the IK legs

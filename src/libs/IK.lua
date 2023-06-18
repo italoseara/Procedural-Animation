@@ -32,12 +32,15 @@ local Vector = require "libs.vector"
 local Segment = {}
 Segment.__index = Segment
 
-function Segment.new(length, circ)
+function Segment.new(length, circ, maxAngle, minAngle)
     local self = setmetatable({}, Segment)
     self.a = Vector(0, 0)
     self.b = Vector(0, 0)
     self.length = length
+    
     self.angle = 0
+    self.maxAngle = maxAngle
+    self.minAngle = minAngle
 
     if circ ~= nil then
         self.radius = circ / 2
@@ -49,6 +52,12 @@ function Segment:update()
     local d = Vector.fromPolar(self.angle, self.length)
     self.b.x = self.a.x + d.x
     self.b.y = self.a.y + d.y
+
+    if self.maxAngle ~= nil and self.angle > self.maxAngle then
+        self.angle = self.maxAngle
+    elseif self.minAngle ~= nil and self.angle < self.minAngle then
+        self.angle = self.minAngle
+    end
 end
 
 function Segment:follow(target)
@@ -66,7 +75,7 @@ function Segment:getMediumPoint()
     return Vector((self.a.x + self.b.x) / 2, (self.a.y + self.b.y) / 2)
 end
 
-function Segment:pull(x, y, lerpSpeed)
+function Segment:pullTo(x, y, strenth)
     local target = Vector(x, y)
     local dir = target - self.a
     self.angle = dir:heading()
@@ -74,8 +83,8 @@ function Segment:pull(x, y, lerpSpeed)
     dir:setMag(self.length)
     dir = dir * -1
 
-    if lerpSpeed == nil then lerpSpeed = 1 end
-    self.a = self.a + (target + dir - self.a) * lerpSpeed
+    if strenth == nil then strenth = 1 end
+    self.a = self.a + (target + dir - self.a) * strenth
 end
 
 function Segment:draw(debug)
@@ -108,8 +117,8 @@ function IK:setFixedPoint(x, y)
     self.fixedPoint = Vector(x, y)
 end
 
-function IK:addSegment(length, circ)
-    table.insert(self.segments, Segment.new(length, circ))
+function IK:addSegment(length, circ, maxAngle, minAngle)
+    table.insert(self.segments, Segment.new(length, circ, maxAngle, minAngle))
 end
 
 function IK:setTarget(x, y)
