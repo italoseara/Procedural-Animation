@@ -66,6 +66,18 @@ function Segment:getMediumPoint()
     return Vector((self.a.x + self.b.x) / 2, (self.a.y + self.b.y) / 2)
 end
 
+function Segment:pull(x, y, lerpSpeed)
+    local target = Vector(x, y)
+    local dir = target - self.a
+    self.angle = dir:heading()
+
+    dir:setMag(self.length)
+    dir = dir * -1
+
+    if lerpSpeed == nil then lerpSpeed = 1 end
+    self.a = self.a + (target + dir - self.a) * lerpSpeed
+end
+
 function Segment:draw(debug)
     love.graphics.line(self.a.x, self.a.y, self.b.x, self.b.y)
 

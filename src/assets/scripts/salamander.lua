@@ -33,8 +33,8 @@ function Salamander:new(x, y)
     self.body:addSegment(20, 20)
 
     self.feet = {}
-    self:addFeet(1, 20, 30, 1)
-    self:addFeet(6, 20, 30, 0)
+    self:addFeet(1, 10, 30, 1)
+    self:addFeet(6, 10, 30, 0)
 end
 
 function Salamander:addFeet(index, angle, length, firstStep)
@@ -113,6 +113,7 @@ function Salamander:updateFeet(dt)
         local angle = body.angle + math.rad(foot.angle)
         local pos = body:getMediumPoint()
 
+        -- Calculate the desired position of the feet
         local left = Vector(0, 0)
         local right = Vector(0, 0)
 
@@ -124,6 +125,7 @@ function Salamander:updateFeet(dt)
 
         local speed = (1 / self.vel:len()) * 30
 
+        -- If the foot is not in the desired position, move it
         if foot.lastStep < love.timer.getTime() - speed then
             if foot.step == 1 then
                 local distance = foot.desired.right:dist(right)
@@ -144,22 +146,37 @@ function Salamander:updateFeet(dt)
             end
         end
 
-        -- Lerp the current position to the desired position with a speed relative to the velocity
-        foot.current.right.x = foot.current.right.x +
-            (foot.desired.right.x - foot.current.right.x) * self.vel:len() * dt / 5
-        foot.current.right.y = foot.current.right.y +
-            (foot.desired.right.y - foot.current.right.y) * self.vel:len() * dt / 5
+        -- Update the current position of the feet using a lerp
+        local lerpSpeed = self.vel:len() * dt / 5
 
-        foot.current.left.x = foot.current.left.x + (foot.desired.left.x - foot.current.left.x) * self.vel:len() * dt / 5
-        foot.current.left.y = foot.current.left.y + (foot.desired.left.y - foot.current.left.y) * self.vel:len() * dt / 5
+        foot.current.right.x = foot.current.right.x + (foot.desired.right.x - foot.current.right.x) * lerpSpeed
+        foot.current.right.y = foot.current.right.y + (foot.desired.right.y - foot.current.right.y) * lerpSpeed
 
+        foot.current.left.x = foot.current.left.x + (foot.desired.left.x - foot.current.left.x) * lerpSpeed
+        foot.current.left.y = foot.current.left.y + (foot.desired.left.y - foot.current.left.y) * lerpSpeed
+
+        -- pull the body slightly toward the moving leg using a lerp
+        if foot.step ==1 then
+            local right = Vector(0, 0)
+            right.x = pos.x + math.cos(angle + math.rad(90)) * foot.length / 10
+            right.y = pos.y + math.sin(angle + math.rad(90)) * foot.length / 10
+
+            body:pull(right.x, right.y, lerpSpeed)
+        else
+            local left = Vector(0, 0)
+            left.x = pos.x + math.cos(angle - math.rad(90)) * foot.length / 10
+            left.y = pos.y + math.sin(angle - math.rad(90)) * foot.length / 10
+
+            body:pull(left.x, left.y, lerpSpeed)
+        end
+
+        -- Update the IK legs
         foot.legs.left:setTarget(foot.current.left.x, foot.current.left.y)
         foot.legs.left:setFixedPoint(pos.x, pos.y)
+        foot.legs.left:update()
 
         foot.legs.right:setTarget(foot.current.right.x, foot.current.right.y)
         foot.legs.right:setFixedPoint(pos.x, pos.y)
-
-        foot.legs.left:update()
         foot.legs.right:update()
     end
 end
