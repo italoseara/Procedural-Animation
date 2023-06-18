@@ -22,7 +22,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-]]--
+]]
+   --
 
 local assert = assert
 local sqrt, cos, sin, atan2 = math.sqrt, math.cos, math.sin, math.atan2
@@ -30,10 +31,10 @@ local sqrt, cos, sin, atan2 = math.sqrt, math.cos, math.sin, math.atan2
 local vector = {}
 vector.__index = vector
 
-local function new(x,y)
-	return setmetatable({x = x or 0, y = y or 0}, vector)
+local function new(x, y)
+	return setmetatable({ x = x or 0, y = y or 0 }, vector)
 end
-local zero = new(0,0)
+local zero = new(0, 0)
 
 local function fromPolar(angle, radius)
 	radius = radius or 1
@@ -46,9 +47,9 @@ local function randomDirection(len_min, len_max)
 
 	assert(len_max > 0, "len_max must be greater than zero")
 	assert(len_max >= len_min, "len_max must be greater than or equal to len_min")
-	
-	return fromPolar(math.random() * 2*math.pi,
-	                 math.random() * (len_max-len_min) + len_min)
+
+	return fromPolar(math.random() * 2 * math.pi,
+		math.random() * (len_max - len_min) + len_min)
 end
 
 local function isvector(v)
@@ -64,54 +65,54 @@ function vector:unpack()
 end
 
 function vector:__tostring()
-	return "("..tonumber(self.x)..","..tonumber(self.y)..")"
+	return "(" .. tonumber(self.x) .. "," .. tonumber(self.y) .. ")"
 end
 
 function vector.__unm(a)
 	return new(-a.x, -a.y)
 end
 
-function vector.__add(a,b)
+function vector.__add(a, b)
 	assert(isvector(a) and isvector(b), "Add: wrong argument types (<vector> expected)")
-	return new(a.x+b.x, a.y+b.y)
+	return new(a.x + b.x, a.y + b.y)
 end
 
-function vector.__sub(a,b)
+function vector.__sub(a, b)
 	assert(isvector(a) and isvector(b), "Sub: wrong argument types (<vector> expected)")
-	return new(a.x-b.x, a.y-b.y)
+	return new(a.x - b.x, a.y - b.y)
 end
 
-function vector.__mul(a,b)
+function vector.__mul(a, b)
 	if type(a) == "number" then
-		return new(a*b.x, a*b.y)
+		return new(a * b.x, a * b.y)
 	elseif type(b) == "number" then
-		return new(b*a.x, b*a.y)
+		return new(b * a.x, b * a.y)
 	else
 		assert(isvector(a) and isvector(b), "Mul: wrong argument types (<vector> or <number> expected)")
-		return a.x*b.x + a.y*b.y
+		return a.x * b.x + a.y * b.y
 	end
 end
 
-function vector.__div(a,b)
+function vector.__div(a, b)
 	assert(isvector(a) and type(b) == "number", "wrong argument types (expected <vector> / <number>)")
 	return new(a.x / b, a.y / b)
 end
 
-function vector.__eq(a,b)
+function vector.__eq(a, b)
 	return a.x == b.x and a.y == b.y
 end
 
-function vector.__lt(a,b)
+function vector.__lt(a, b)
 	return a.x < b.x or (a.x == b.x and a.y < b.y)
 end
 
-function vector.__le(a,b)
+function vector.__le(a, b)
 	return a.x <= b.x and a.y <= b.y
 end
 
-function vector.permul(a,b)
+function vector.permul(a, b)
 	assert(isvector(a) and isvector(b), "permul: wrong argument types (<vector> expected)")
-	return new(a.x*b.x, a.y*b.y)
+	return new(a.x * b.x, a.y * b.y)
 end
 
 function vector:toPolar()
@@ -138,6 +139,19 @@ function vector.dist2(a, b)
 	local dx = a.x - b.x
 	local dy = a.y - b.y
 	return (dx * dx + dy * dy)
+end
+
+function vector:heading()
+	return atan2(self.y, self.x)
+end
+
+function vector:setMag(mag)
+	local l = self:len()
+	if l > 0 then
+		self.x, self.y = self.x / l, self.y / l
+		self.x, self.y = self.x * mag, self.y * mag
+	end
+	return self
 end
 
 function vector:normalizeInplace()
@@ -204,7 +218,6 @@ end
 function vector:trimmed(maxLen)
 	return self:clone():trimInplace(maxLen)
 end
-
 
 -- the module
 return setmetatable({

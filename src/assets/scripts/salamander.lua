@@ -1,5 +1,6 @@
 local Class = require 'libs.classic'
 local Vector = require 'libs.vector'
+local IK = require 'libs.IK'
 
 local Salamander = Class:extend()
 
@@ -13,46 +14,66 @@ function Salamander:new(x, y)
     self.desired = Vector(0, 0)
     self.steer = Vector(0, 0)
 
-    -- The body is a list of body parts, each representing a node
-    -- that will act like a string, to make a "snake" effect
-    self.body = {
-        { pos = Vector(x, y), radius = 7, dist = 0 },
-        { pos = Vector(x, y), radius = 5, dist = 12, foot = true },
-        { pos = Vector(x, y), radius = 6, dist = 11 },
-        { pos = Vector(x, y), radius = 7, dist = 14 },
-        { pos = Vector(x, y), radius = 7, dist = 15 },
-        { pos = Vector(x, y), radius = 7, dist = 15 },
-        { pos = Vector(x, y), radius = 5, dist = 15, foot = true },
-        { pos = Vector(x, y), radius = 4, dist = 15 },
-        { pos = Vector(x, y), radius = 3, dist = 15 },
-        { pos = Vector(x, y), radius = 3, dist = 15 },
-        { pos = Vector(x, y), radius = 3, dist = 15 },
-        { pos = Vector(x, y), radius = 2, dist = 15 },
-        { pos = Vector(x, y), radius = 2, dist = 15 },
-        { pos = Vector(x, y), radius = 1, dist = 15 },
-    }
+    self.body = IK()
+    self.body:addSegment(15, 5)
+    self.body:addSegment(15, 5)
+    self.body:addSegment(15, 5)
+    self.body:addSegment(20, 8)
+    self.body:addSegment(20, 8)
+    self.body:addSegment(20, 10)
+    self.body:addSegment(20, 10)
+    self.body:addSegment(20, 10)
+    self.body:addSegment(15, 15)
+    self.body:addSegment(18, 18)
+    self.body:addSegment(20, 20)
+    self.body:addSegment(20, 20)
+    self.body:addSegment(18, 18)
+    self.body:addSegment(16, 16)
+    self.body:addSegment(12, 12)
+    self.body:addSegment(20, 20)
 
     self.feet = {}
+    self:addFeet(1, 20, 30, 1)
+    self:addFeet(6, 20, 30, 0)
+end
 
-    for i = 1, #self.body do
-        if self.body[i].foot then
-            table.insert(self.feet, {
-                node = self.body[i],
-                front_node = self.body[i + 1],
+function Salamander:addFeet(index, angle, length, firstStep)
+    local foot = {
+        body = #self.body.segments - index,
+        angle = angle,
+        length = length,
 
-                leg_length = 20,
-                leg_angle = 25,
+        step = firstStep,
+        lastStep = 0,
 
-                left = Vector(0, 0),
-                right = Vector(0, 0),
-                left_desired = Vector(0, 0),
-                right_desired = Vector(0, 0),
+        desired = {
+            left = Vector(0, 0),
+            right = Vector(0, 0),
+        },
+        current = {
+            left = Vector(0, 0),
+            right = Vector(0, 0),
+        },
 
-                step = true,
-                last_step = 0
-            })
-        end
-    end
+        legs = {
+            left = IK(),
+            right = IK(),
+        },
+    }
+
+    local point = self.body.segments[foot.body]:getMediumPoint()
+
+    foot.legs.left:addSegment(foot.length / 2)
+    foot.legs.left:addSegment(foot.length / 2)
+    foot.legs.left:setTarget(foot.current.left.x, foot.current.left.y)
+    foot.legs.left:setFixedPoint(point.x, point.y)
+
+    foot.legs.right:addSegment(foot.length / 2)
+    foot.legs.right:addSegment(foot.length / 2)
+    foot.legs.right:setTarget(foot.current.right.x, foot.current.right.y)
+    foot.legs.right:setFixedPoint(point.x, point.y)
+
+    table.insert(self.feet, foot)
 end
 
 function Salamander:seek(target)
@@ -65,83 +86,16 @@ function Salamander:seek(target)
     self.desired = self.desired:normalized() * self.max_speed
 
     self.steer = self.desired - self.vel
-
-    self:applyForce(self.steer)
+    self.acc = self.acc + self.steer
 end
 
-function Salamander:applyForce(force)
-    self.acc = self.acc + force
-end
-
-function Salamander:calculateFeet(dt)
-    for i = 1, #self.feet do
-        local foot = self.feet[i]
-        local dir = (foot.node.pos - foot.front_node.pos):normalized()
-
-        local left = Vector(0, 0)
-        local right = Vector(0, 0)
-
-        left.x = foot.node.pos.x + math.cos(math.rad(foot.leg_angle)) * foot.leg_length
-        left.y = foot.node.pos.y + math.sin(math.rad(foot.leg_angle)) * foot.leg_length
-
-        right.x = foot.node.pos.x + math.cos(math.rad(-foot.leg_angle)) * foot.leg_length
-        right.y = foot.node.pos.y + math.sin(math.rad(-foot.leg_angle)) * foot.leg_length
-
-        left = foot.node.pos + (left - foot.node.pos):rotated(dir:angleTo())
-        right = foot.node.pos + (right - foot.node.pos):rotated(dir:angleTo())
-
-        -- Make the foot stationary unless (distance to step pos > leg length) then move to step pos
-        if foot.step then
-            local dist = foot.left:dist(foot.node.pos)
-
-            if dist > foot.leg_length and foot.last_step < love.timer.getTime() - 0.1 then
-                foot.left_desired = left
-
-                foot.step = false
-                foot.last_step = love.timer.getTime()
-            end
-        else
-            local dist = foot.right:dist(foot.node.pos)
-
-            if dist > foot.leg_length and foot.last_step < love.timer.getTime() - 0.1 then
-                foot.right_desired = right
-
-                foot.step = true
-                foot.last_step = love.timer.getTime()
-            end
-        end
-
-        -- Lerp the feet to the desired position
-        foot.left = foot.left + (foot.left_desired - foot.left) * 25 * dt
-        foot.right = foot.right + (foot.right_desired - foot.right) * 25 * dt
-    end
-end
-
-function Salamander:updateBody(dt)
-    self.body[1].pos = self.pos
-
-    for i = 2, #self.body do
-        local dist = self.body[i].pos:dist(self.body[i - 1].pos)
-
-        if dist > self.body[i].dist then
-            local dir = (self.body[i - 1].pos - self.body[i].pos):normalized()
-            self.body[i].pos = self.body[i].pos + dir * (dist - self.body[i].dist)
-        end
-    end
-
-    self:calculateFeet(dt)
-end
-
-function Salamander:update(dt)
+function Salamander:move(dt)
     -- Increase the salamander's speed if the player is holding the mouse button
     if love.mouse.isDown(1) then
         self.max_speed = 500
     else
         self.max_speed = 100
     end
-
-    -- Update body
-    self:updateBody(dt)
 
     -- Apply acceleration to velocity
     self.vel = self.vel + self.acc * dt
@@ -153,35 +107,96 @@ function Salamander:update(dt)
     self.acc = Vector(0, 0)
 end
 
-function Salamander:draw()
-    -- Draw body
-    for i = 1, #self.body do
-        if self.body[i].foot then
-            love.graphics.setColor(1, 0, 0)
-            love.graphics.circle('fill', self.body[i].pos.x, self.body[i].pos.y, self.body[i].radius)
-            love.graphics.setColor(0, 0, 0)
+function Salamander:updateFeet(dt)
+    for i, foot in ipairs(self.feet) do
+        local body = self.body.segments[foot.body]
+        local angle = body.angle + math.rad(foot.angle)
+        local pos = body:getMediumPoint()
+
+        local left = Vector(0, 0)
+        local right = Vector(0, 0)
+
+        right.x = pos.x + math.cos(angle) * foot.length
+        right.y = pos.y + math.sin(angle) * foot.length
+
+        left.x = pos.x + math.cos(angle - 2 * math.rad(foot.angle)) * foot.length
+        left.y = pos.y + math.sin(angle - 2 * math.rad(foot.angle)) * foot.length
+
+        local speed = (1 / self.vel:len()) * 30
+
+        if foot.lastStep < love.timer.getTime() - speed then
+            if foot.step == 1 then
+                local distance = foot.desired.right:dist(right)
+
+                if distance > foot.length / 2 then
+                    foot.desired.right = right
+                    foot.step = 0
+                    foot.lastStep = love.timer.getTime()
+                end
+            else
+                local distance = foot.desired.left:dist(left)
+
+                if distance > foot.length / 2 then
+                    foot.desired.left = left
+                    foot.step = 1
+                    foot.lastStep = love.timer.getTime()
+                end
+            end
         end
 
-        love.graphics.circle('line', self.body[i].pos.x, self.body[i].pos.y, self.body[i].radius)
-    end
+        -- Lerp the current position to the desired position with a speed relative to the velocity
+        foot.current.right.x = foot.current.right.x +
+            (foot.desired.right.x - foot.current.right.x) * self.vel:len() * dt / 5
+        foot.current.right.y = foot.current.right.y +
+            (foot.desired.right.y - foot.current.right.y) * self.vel:len() * dt / 5
 
-    -- Connect the points of the body
-    for i = 1, #self.body - 1 do
-        love.graphics.line(self.body[i].pos.x, self.body[i].pos.y, self.body[i + 1].pos.x, self.body[i + 1].pos.y)
-    end
+        foot.current.left.x = foot.current.left.x + (foot.desired.left.x - foot.current.left.x) * self.vel:len() * dt / 5
+        foot.current.left.y = foot.current.left.y + (foot.desired.left.y - foot.current.left.y) * self.vel:len() * dt / 5
 
+        foot.legs.left:setTarget(foot.current.left.x, foot.current.left.y)
+        foot.legs.left:setFixedPoint(pos.x, pos.y)
+
+        foot.legs.right:setTarget(foot.current.right.x, foot.current.right.y)
+        foot.legs.right:setFixedPoint(pos.x, pos.y)
+
+        foot.legs.left:update()
+        foot.legs.right:update()
+    end
+end
+
+function Salamander:updateBody(dt)
+    self.body:setTarget(self.pos.x, self.pos.y)
+    self.body:update()
+end
+
+function Salamander:update(dt)
+    self:updateBody(dt)
+    self:updateFeet(dt)
+    self:move(dt)
+end
+
+function Salamander:draw()
     -- Draw feet
-    love.graphics.setColor(1, 0, 0)
-    for i = 1, #self.feet do
-        local foot = self.feet[i]
+    for i, foot in ipairs(self.feet) do
+        local body = self.body.segments[foot.body]
+        local pos = body:getMediumPoint()
 
-        love.graphics.line(foot.node.pos.x, foot.node.pos.y, foot.left.x, foot.left.y)
-        love.graphics.line(foot.node.pos.x, foot.node.pos.y, foot.right.x, foot.right.y)
+        love.graphics.setColor(1, 0, 0)
+        love.graphics.circle('fill', pos.x, pos.y, body.radius)
 
-        love.graphics.circle('fill', foot.left.x, foot.left.y, 4)
-        love.graphics.circle('fill', foot.right.x, foot.right.y, 4)
+        foot.legs.left:draw()
+        foot.legs.right:draw()
+
+        local leftHand = foot.legs.left.segments[2].b
+        local rightHand = foot.legs.right.segments[2].b
+
+        love.graphics.circle('fill', leftHand.x, leftHand.y, 5)
+        love.graphics.circle('fill', rightHand.x, rightHand.y, 5)
     end
+
+    -- Draw body
     love.graphics.setColor(0, 0, 0)
+    self.body:draw()
 
     -- Desired
     love.graphics.setColor(1, 0, 0)
